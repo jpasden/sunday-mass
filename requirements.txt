@@ -1,4 +1,4 @@
 requests==2.27.1
 beautifulsoup4==4.11.1
 jinja2==3.0.3
-google-api-python-client==2.70.0
+google-api-python-client==2.52.0
