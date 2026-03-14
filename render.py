@@ -64,7 +64,7 @@ def main():
     # Copy favicon into public dir
     favicon_src = os.path.join(script_dir, "favicon.svg")
     favicon_dst = os.path.join(config.PUBLIC_DIR, "favicon.svg")
-    if os.path.exists(favicon_src):
+    if os.path.exists(favicon_src) and os.path.abspath(favicon_src) != os.path.abspath(favicon_dst):
         shutil.copy2(favicon_src, favicon_dst)
 
 
