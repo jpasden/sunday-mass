@@ -254,39 +254,99 @@ def search_youtube(query, max_results=5):
 CATEGORIES = ("readings", "full_mass", "homily", "music")
 
 
-def _priority(video, preferred_channels):
-    """Return sort key: preferred channels sort first by their list position."""
-    channel = video.get("channel", "")
-    for i, name in enumerate(preferred_channels):
-        if name.lower() in channel.lower():
-            return i
-    return len(preferred_channels)
+def _make_video(item):
+    snippet = item.get("snippet", {})
+    video_id = item.get("id", {})
+    if isinstance(video_id, dict):
+        video_id = video_id.get("videoId", "")
+    return {
+        "id": video_id,
+        "title": snippet.get("title", ""),
+        "channel": snippet.get("channelTitle", ""),
+        "found_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
+    }
 
 
-def sort_by_preferred(videos, category):
-    """Sort a video list so preferred channels float to the top."""
-    preferred = config.PREFERRED_CHANNELS.get(category, [])
-    return sorted(videos, key=lambda v: _priority(v, preferred))
+def search_youtube(query, channel_id=None, max_results=5):
+    """Search YouTube, optionally restricted to a channel. Returns list of video dicts."""
+    params = {
+        "key": config.YOUTUBE_API_KEY,
+        "q": query,
+        "part": "snippet",
+        "type": "video",
+        "maxResults": max_results,
+        "relevanceLanguage": "en",
+        "safeSearch": "none",
+        "order": "date",
+    }
+    if channel_id:
+        params["channelId"] = channel_id
+    try:
+        resp = requests.get(YOUTUBE_SEARCH_URL, params=params, timeout=15)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        log.error("YouTube API request failed: %s", e)
+        return []
+    data = resp.json()
+    results = [_make_video(item) for item in data.get("items", [])
+               if item.get("id", {}).get("videoId")]
+    log.info("YouTube search '%s' (channel=%s) returned %d results.",
+             query, channel_id or "any", len(results))
+    time.sleep(1)
+    return results
+
+
+def fetch_for_category(category, query, channel_ids):
+    """
+    Search preferred channels first (in priority order), then fall back to
+    a general search if we still have fewer than MAX_VIDEOS_PER_CATEGORY results.
+    Returns a deduplicated list.
+    """
+    target = config.MAX_VIDEOS_PER_CATEGORY
+    seen_ids = set()
+    results = []
+
+    for channel_id in channel_ids:
+        if len(results) >= target:
+            break
+        videos = search_youtube(query, channel_id=channel_id, max_results=target)
+        for v in videos:
+            if v["id"] and v["id"] not in seen_ids:
+                seen_ids.add(v["id"])
+                results.append(v)
+
+    if len(results) < target:
+        log.info("Only %d from preferred channels for '%s'; running general search.",
+                 len(results), category)
+        general = search_youtube(query, max_results=config.VIDEOS_TO_FETCH_PER_SEARCH)
+        for v in general:
+            if v["id"] and v["id"] not in seen_ids:
+                seen_ids.add(v["id"])
+                results.append(v)
+
+    return results
 
 
 def fetch_videos(liturgical_name, sunday_date):
-    """Run one YouTube search per category and return dict keyed by category."""
+    """Fetch videos for all categories using preferred channels first."""
     date_label = sunday_date.strftime("%B %-d, %Y")
     short_name = liturgical_name.split(",")[0]  # e.g. "Fourth Sunday of Lent"
+
     queries = {
         "readings": "Catholic mass readings {date}".format(date=date_label),
-        "full_mass": "{name} {year} full Sunday Mass celebration".format(
+        "full_mass": "{name} {year} Sunday Mass".format(
             name=short_name, year=sunday_date.year),
         "homily":    "{name} {year} homily OR sermon".format(
             name=short_name, year=sunday_date.year),
         "music":     "{name} {year} hymns OR choir OR canticle".format(
             name=short_name, year=sunday_date.year),
     }
+
     results = {}
     for category, query in queries.items():
-        videos = search_youtube(query, config.VIDEOS_TO_FETCH_PER_SEARCH)
-        results[category] = sort_by_preferred(videos, category)
-        time.sleep(1)
+        channel_ids = config.PREFERRED_CHANNEL_IDS.get(category, [])
+        results[category] = fetch_for_category(category, query, channel_ids)
+
     return results
 
 
@@ -305,7 +365,7 @@ def merge_videos(existing, new_results):
             if video["id"] not in existing_ids:
                 combined.append(video)
                 existing_ids.add(video["id"])
-        merged[category] = sort_by_preferred(combined, category)
+        merged[category] = combined
     return merged
 
 
