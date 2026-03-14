@@ -6,6 +6,7 @@ Reads data.json and renders index.html via Jinja2 template.
 import json
 import logging
 import os
+import shutil
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -59,6 +60,12 @@ def main():
         f.write(html)
 
     log.info("Rendered index.html to %s", out_path)
+
+    # Copy favicon into public dir
+    favicon_src = os.path.join(script_dir, "favicon.svg")
+    favicon_dst = os.path.join(config.PUBLIC_DIR, "favicon.svg")
+    if os.path.exists(favicon_src):
+        shutil.copy2(favicon_src, favicon_dst)
 
 
 if __name__ == "__main__":
