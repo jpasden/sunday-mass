@@ -113,47 +113,14 @@ def scrape_readings(sunday_date):
     # --- Liturgical name ---
     liturgical_name = None
 
-    # Try to find it in the h4 date heading or nearby text
-    # On Sunday pages, Catholic.org sometimes includes the Sunday name
-    # in the h4 or a subtitle. Try several approaches.
-    h4 = soup.find("h4", string=re.compile(r"Daily Reading for", re.IGNORECASE))
-    if h4:
-        # Check next sibling or parent for a subtitle
-        parent = h4.find_parent()
-        if parent:
-            text = parent.get_text(" ", strip=True)
-            # Look for patterns like "Fourth Sunday of Lent"
-            match = re.search(
-                r"((?:First|Second|Third|Fourth|Fifth|Sixth|Seventh|"
-                r"Palm|Easter|Pentecost|Trinity|Advent|Christmas|Epiphany|"
-                r"Baptism|Corpus|Holy Family)[^\n<]{5,60})",
-                text,
-                re.IGNORECASE,
-            )
-            if match:
-                liturgical_name = match.group(1).strip()
-
-    # Also check page title
-    if not liturgical_name:
-        title_tag = soup.find("title")
-        if title_tag:
-            match = re.search(
-                r"((?:First|Second|Third|Fourth|Fifth|Sixth|Seventh|"
-                r"Palm|Easter|Pentecost|Trinity|Advent|Christmas|Epiphany|"
-                r"Baptism|Corpus|Holy Family)[^\n<]{5,60})",
-                title_tag.get_text(),
-                re.IGNORECASE,
-            )
-            if match:
-                liturgical_name = match.group(1).strip()
-
-    # Fallback: compute from our liturgical calendar
-    if not liturgical_name:
-        liturgical_name = get_liturgical_name(sunday_date)
-        if liturgical_name:
-            log.info("Used fallback liturgical name: %s", liturgical_name)
-        else:
-            log.warning("Could not determine liturgical name.")
+    # Liturgical name: always compute from our calendar (reliable).
+    # Catholic.org scraping for this is unreliable — the regex was
+    # matching scripture citations like "First Samuel...".
+    liturgical_name = get_liturgical_name(sunday_date)
+    if liturgical_name:
+        log.info("Liturgical name: %s", liturgical_name)
+    else:
+        log.warning("Could not determine liturgical name.")
 
     # --- Readings ---
     # Gospel and Reading 2 sometimes appear outside #drReadings in #bibleDailyReading.
