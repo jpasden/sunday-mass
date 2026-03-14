@@ -11,9 +11,10 @@
       --crimson: #8B0000;
       --gold: #C9A84C;
       --text: #1a1a1a;
-      --muted: #555;
+      --muted: #666;
       --border: #e0d6c8;
       --bg: #ffffff;
+      --tab-bg: #f7f4f0;
     }
 
     body {
@@ -22,9 +23,6 @@
       color: var(--text);
       line-height: 1.7;
     }
-
-    a { color: var(--crimson); text-decoration: none; }
-    a:hover { text-decoration: underline; }
 
     /* ── Header ── */
     header {
@@ -53,17 +51,50 @@
       margin: 1rem auto 0;
     }
 
-    /* ── Main layout ── */
-    main {
-      max-width: 860px;
+    /* ── Top-level tab nav ── */
+    .top-nav {
+      display: flex;
+      border-bottom: 2px solid var(--crimson);
+      background: var(--tab-bg);
+    }
+    .top-nav button {
+      flex: 1;
+      padding: 0.9rem 0.5rem;
+      border: none;
+      background: none;
+      font-family: Arial, sans-serif;
+      font-size: 0.82rem;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .top-nav button:hover { color: var(--crimson); }
+    .top-nav button.active {
+      color: var(--crimson);
+      border-bottom-color: var(--crimson);
+      background: var(--bg);
+    }
+
+    /* ── Top-level tab panels ── */
+    .top-panel { display: none; }
+    .top-panel.active { display: block; }
+
+    /* ── Main content area ── */
+    .panel-inner {
+      max-width: 920px;
       margin: 0 auto;
       padding: 2rem 1.5rem 4rem;
     }
 
-    /* ── Section headings ── */
-    .section-title {
+    /* ── Section label ── */
+    .section-label {
       font-family: Arial, sans-serif;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: bold;
       letter-spacing: 0.14em;
       text-transform: uppercase;
@@ -73,9 +104,7 @@
       border-bottom: 1px solid var(--border);
     }
 
-    /* ── Readings ── */
-    .readings { margin-bottom: 3rem; }
-
+    /* ── Reading sub-tabs ── */
     .reading-tabs {
       display: flex;
       flex-wrap: wrap;
@@ -114,29 +143,19 @@
     }
     .reading-text {
       font-size: 1rem;
-      line-height: 1.85;
+      line-height: 1.9;
       color: var(--text);
       white-space: pre-wrap;
+      margin-bottom: 2.5rem;
     }
 
-    /* ── Videos ── */
-    .videos { margin-bottom: 2rem; }
+    /* ── Video grid ── */
+    .video-section { margin-top: 1rem; }
 
-    .video-category { margin-bottom: 2.5rem; }
-    .video-category-title {
-      font-family: Arial, sans-serif;
-      font-size: 0.78rem;
-      font-weight: bold;
-      color: var(--muted);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      margin-bottom: 1rem;
-    }
-
-    .video-row {
+    .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 1.2rem;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.6rem;
     }
 
     .video-card {}
@@ -146,6 +165,7 @@
       height: 0;
       overflow: hidden;
       border: 1px solid var(--border);
+      border-radius: 2px;
     }
     .video-embed iframe {
       position: absolute;
@@ -153,18 +173,16 @@
       width: 100%; height: 100%;
       border: none;
     }
-    .video-meta {
-      margin-top: 0.5rem;
-    }
+    .video-meta { margin-top: 0.6rem; }
     .video-title {
       font-family: Arial, sans-serif;
-      font-size: 0.82rem;
+      font-size: 0.85rem;
       color: var(--text);
       line-height: 1.4;
     }
     .video-channel {
       font-family: Arial, sans-serif;
-      font-size: 0.73rem;
+      font-size: 0.75rem;
       color: var(--muted);
       margin-top: 0.2rem;
     }
@@ -197,24 +215,31 @@
   <hr class="gold-rule">
 </header>
 
-<main>
+<!-- Top-level tab nav -->
+<nav class="top-nav">
+  <button class="active" onclick="showTop('readings', this)">Readings</button>
+  <button onclick="showTop('masses', this)">Masses</button>
+  <button onclick="showTop('sermons', this)">Sermons</button>
+  <button onclick="showTop('music', this)">Music</button>
+</nav>
 
-  <!-- READINGS -->
-  <section class="readings">
-    <h2 class="section-title">Mass Readings</h2>
+<!-- ══ READINGS TAB ══ -->
+<div class="top-panel active" id="top-readings">
+  <div class="panel-inner">
 
+    <h2 class="section-label">Mass Readings</h2>
     <div class="reading-tabs">
       {% if readings.first_reading %}
-      <button class="tab-btn active" onclick="showTab('first_reading', this)">First Reading</button>
+      <button class="tab-btn active" onclick="showReading('first_reading', this)">First Reading</button>
       {% endif %}
       {% if readings.psalm %}
-      <button class="tab-btn" onclick="showTab('psalm', this)">Psalm</button>
+      <button class="tab-btn" onclick="showReading('psalm', this)">Psalm</button>
       {% endif %}
       {% if readings.second_reading %}
-      <button class="tab-btn" onclick="showTab('second_reading', this)">Second Reading</button>
+      <button class="tab-btn" onclick="showReading('second_reading', this)">Second Reading</button>
       {% endif %}
       {% if readings.gospel %}
-      <button class="tab-btn" onclick="showTab('gospel', this)">Gospel</button>
+      <button class="tab-btn" onclick="showReading('gospel', this)">Gospel</button>
       {% endif %}
     </div>
 
@@ -224,48 +249,36 @@
       <div class="reading-text">{{ readings.first_reading.text }}</div>
     </div>
     {% endif %}
-
     {% if readings.psalm %}
     <div class="reading-panel" id="panel-psalm">
       <p class="reading-citation">{{ readings.psalm.citation }}</p>
       <div class="reading-text">{{ readings.psalm.text }}</div>
     </div>
     {% endif %}
-
     {% if readings.second_reading %}
     <div class="reading-panel" id="panel-second_reading">
       <p class="reading-citation">{{ readings.second_reading.citation }}</p>
       <div class="reading-text">{{ readings.second_reading.text }}</div>
     </div>
     {% endif %}
-
     {% if readings.gospel %}
     <div class="reading-panel" id="panel-gospel">
       <p class="reading-citation">{{ readings.gospel.citation }}</p>
       <div class="reading-text">{{ readings.gospel.text }}</div>
     </div>
     {% endif %}
-  </section>
 
-  <!-- VIDEOS -->
-  <section class="videos">
-    <h2 class="section-title">Videos</h2>
-
-    <!-- Full Masses -->
-    <div class="video-category">
-      <p class="video-category-title">Full Masses</p>
-      {% if videos.full_mass %}
-      <div class="video-row">
-        {% for v in videos.full_mass %}
+    {% if videos.readings %}
+    <div class="video-section">
+      <h2 class="section-label">Videos</h2>
+      <div class="video-grid">
+        {% for v in videos.readings %}
         <div class="video-card">
           <div class="video-embed">
-            <iframe
-              src="https://www.youtube.com/embed/{{ v.id }}"
+            <iframe src="https://www.youtube.com/embed/{{ v.id }}"
               title="{{ v.title | e }}"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
+              allowfullscreen loading="lazy"></iframe>
           </div>
           <div class="video-meta">
             <p class="video-title">{{ v.title }}</p>
@@ -274,77 +287,110 @@
         </div>
         {% endfor %}
       </div>
-      {% else %}
-      <p class="no-videos">No videos found yet.</p>
-      {% endif %}
     </div>
+    {% endif %}
 
-    <!-- Homilies -->
-    <div class="video-category">
-      <p class="video-category-title">Homilies &amp; Sermons</p>
-      {% if videos.homily %}
-      <div class="video-row">
-        {% for v in videos.homily %}
-        <div class="video-card">
-          <div class="video-embed">
-            <iframe
-              src="https://www.youtube.com/embed/{{ v.id }}"
-              title="{{ v.title | e }}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
-          </div>
-          <div class="video-meta">
-            <p class="video-title">{{ v.title }}</p>
-            <p class="video-channel">{{ v.channel }}</p>
-          </div>
+  </div>
+</div>
+
+<!-- ══ MASSES TAB ══ -->
+<div class="top-panel" id="top-masses">
+  <div class="panel-inner">
+    <h2 class="section-label">Full Masses</h2>
+    {% if videos.full_mass %}
+    <div class="video-grid">
+      {% for v in videos.full_mass %}
+      <div class="video-card">
+        <div class="video-embed">
+          <iframe src="https://www.youtube.com/embed/{{ v.id }}"
+            title="{{ v.title | e }}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen loading="lazy"></iframe>
         </div>
-        {% endfor %}
-      </div>
-      {% else %}
-      <p class="no-videos">No videos found yet.</p>
-      {% endif %}
-    </div>
-
-    <!-- Music -->
-    <div class="video-category">
-      <p class="video-category-title">Music</p>
-      {% if videos.music %}
-      <div class="video-row">
-        {% for v in videos.music %}
-        <div class="video-card">
-          <div class="video-embed">
-            <iframe
-              src="https://www.youtube.com/embed/{{ v.id }}"
-              title="{{ v.title | e }}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen
-              loading="lazy"
-            ></iframe>
-          </div>
-          <div class="video-meta">
-            <p class="video-title">{{ v.title }}</p>
-            <p class="video-channel">{{ v.channel }}</p>
-          </div>
+        <div class="video-meta">
+          <p class="video-title">{{ v.title }}</p>
+          <p class="video-channel">{{ v.channel }}</p>
         </div>
-        {% endfor %}
       </div>
-      {% else %}
-      <p class="no-videos">No videos found yet.</p>
-      {% endif %}
+      {% endfor %}
     </div>
+    {% else %}
+    <p class="no-videos">No videos found yet.</p>
+    {% endif %}
+  </div>
+</div>
 
-  </section>
+<!-- ══ SERMONS TAB ══ -->
+<div class="top-panel" id="top-sermons">
+  <div class="panel-inner">
+    <h2 class="section-label">Homilies &amp; Sermons</h2>
+    {% if videos.homily %}
+    <div class="video-grid">
+      {% for v in videos.homily %}
+      <div class="video-card">
+        <div class="video-embed">
+          <iframe src="https://www.youtube.com/embed/{{ v.id }}"
+            title="{{ v.title | e }}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="video-meta">
+          <p class="video-title">{{ v.title }}</p>
+          <p class="video-channel">{{ v.channel }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="no-videos">No videos found yet.</p>
+    {% endif %}
+  </div>
+</div>
 
-</main>
+<!-- ══ MUSIC TAB ══ -->
+<div class="top-panel" id="top-music">
+  <div class="panel-inner">
+    <h2 class="section-label">Music</h2>
+    {% if videos.music %}
+    <div class="video-grid">
+      {% for v in videos.music %}
+      <div class="video-card">
+        <div class="video-embed">
+          <iframe src="https://www.youtube.com/embed/{{ v.id }}"
+            title="{{ v.title | e }}"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowfullscreen loading="lazy"></iframe>
+        </div>
+        <div class="video-meta">
+          <p class="video-title">{{ v.title }}</p>
+          <p class="video-channel">{{ v.channel }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="no-videos">No videos found yet.</p>
+    {% endif %}
+  </div>
+</div>
 
 <footer>
   Updated {{ last_updated }} UTC &nbsp;|&nbsp; Readings from Catholic Online
 </footer>
 
 <script>
-function showTab(id, btn) {
+function showTop(id, btn) {
+  document.querySelectorAll('.top-panel').forEach(function(p) {
+    p.classList.remove('active');
+  });
+  document.querySelectorAll('.top-nav button').forEach(function(b) {
+    b.classList.remove('active');
+  });
+  document.getElementById('top-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function showReading(id, btn) {
   document.querySelectorAll('.reading-panel').forEach(function(p) {
     p.classList.remove('active');
   });

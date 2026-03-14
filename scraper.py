@@ -245,17 +245,40 @@ def search_youtube(query, max_results=5):
     return results
 
 
-def fetch_videos(liturgical_name):
-    """Run the 3 YouTube searches and return dict keyed by category."""
-    year = datetime.date.today().year
+CATEGORIES = ("readings", "full_mass", "homily", "music")
+
+
+def _priority(video, preferred_channels):
+    """Return sort key: preferred channels sort first by their list position."""
+    channel = video.get("channel", "")
+    for i, name in enumerate(preferred_channels):
+        if name.lower() in channel.lower():
+            return i
+    return len(preferred_channels)
+
+
+def sort_by_preferred(videos, category):
+    """Sort a video list so preferred channels float to the top."""
+    preferred = config.PREFERRED_CHANNELS.get(category, [])
+    return sorted(videos, key=lambda v: _priority(v, preferred))
+
+
+def fetch_videos(liturgical_name, sunday_date):
+    """Run one YouTube search per category and return dict keyed by category."""
+    date_label = sunday_date.strftime("%B %-d, %Y")
     queries = {
-        "full_mass": '"{name}" Mass {year}'.format(name=liturgical_name, year=year),
-        "homily":    '"{name}" homily OR sermon {year}'.format(name=liturgical_name, year=year),
-        "music":     '"{name}" hymns OR songs OR canticle'.format(name=liturgical_name),
+        "readings": "Catholic mass readings {date}".format(date=date_label),
+        "full_mass": '"{name}" Mass {year}'.format(
+            name=liturgical_name, year=sunday_date.year),
+        "homily":    '"{name}" homily OR sermon {year}'.format(
+            name=liturgical_name, year=sunday_date.year),
+        "music":     '"{name}" hymns OR songs OR canticle'.format(
+            name=liturgical_name),
     }
     results = {}
     for category, query in queries.items():
-        results[category] = search_youtube(query, config.VIDEOS_TO_FETCH_PER_SEARCH)
+        videos = search_youtube(query, config.VIDEOS_TO_FETCH_PER_SEARCH)
+        results[category] = sort_by_preferred(videos, category)
         time.sleep(1)
     return results
 
@@ -263,11 +286,11 @@ def fetch_videos(liturgical_name):
 def merge_videos(existing, new_results):
     """
     Merge new video results into existing accumulated lists.
-    Deduplicates by video ID.
+    Deduplicates by video ID, then re-sorts by preferred channels.
     Returns updated dict.
     """
     merged = {}
-    for category in ("full_mass", "homily", "music"):
+    for category in CATEGORIES:
         existing_list = existing.get(category, [])
         existing_ids = set(v["id"] for v in existing_list)
         combined = list(existing_list)
@@ -275,7 +298,7 @@ def merge_videos(existing, new_results):
             if video["id"] not in existing_ids:
                 combined.append(video)
                 existing_ids.add(video["id"])
-        merged[category] = combined
+        merged[category] = sort_by_preferred(combined, category)
     return merged
 
 
@@ -304,7 +327,7 @@ def main():
         data["liturgical_name"] = result["liturgical_name"]
         data["readings"] = result["readings"]
         # Reset videos for the new Sunday
-        data["videos"] = {"full_mass": [], "homily": [], "music": []}
+        data["videos"] = {cat: [] for cat in CATEGORIES}
     else:
         log.info("Sunday unchanged (%s). Skipping reading scrape.", sunday_str)
 
@@ -312,7 +335,7 @@ def main():
 
     # --- YouTube: always fetch and merge ---
     if liturgical_name:
-        new_videos = fetch_videos(liturgical_name)
+        new_videos = fetch_videos(liturgical_name, sunday)
         data["videos"] = merge_videos(data.get("videos", {}), new_videos)
     else:
         log.warning("No liturgical name available; skipping YouTube search.")

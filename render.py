@@ -42,7 +42,7 @@ def main():
     videos = data.get("videos", {})
     displayed_videos = {
         cat: videos.get(cat, [])[:config.MAX_VIDEOS_PER_CATEGORY]
-        for cat in ("full_mass", "homily", "music")
+        for cat in ("readings", "full_mass", "homily", "music")
     }
 
     html = template.render(
