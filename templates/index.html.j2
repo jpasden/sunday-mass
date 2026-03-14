@@ -105,39 +105,42 @@
 
     /* ── Section label ── */
     .section-label {
-      font-family: Arial, sans-serif;
-      font-size: 0.68rem;
+      font-family: Georgia, serif;
+      font-size: 1.5rem;
       font-weight: bold;
-      letter-spacing: 0.14em;
-      text-transform: uppercase;
       color: var(--crimson);
-      margin-bottom: 1.2rem;
+      margin-bottom: 1.4rem;
       padding-bottom: 0.4rem;
       border-bottom: 1px solid var(--border);
     }
 
     /* ── Readings: stacked ── */
     .reading-block {
-      margin-bottom: 2.5rem;
+      margin-bottom: 2.8rem;
     }
     .reading-block:last-of-type {
       margin-bottom: 0;
     }
+    .reading-heading {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 0.9rem;
+    }
     .reading-name {
-      font-family: Arial, sans-serif;
-      font-size: 0.72rem;
+      font-family: Georgia, serif;
+      font-size: 1.15rem;
       font-weight: bold;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 0.3rem;
+      color: var(--text);
+      margin: 0;
     }
     .reading-citation {
       font-family: Arial, sans-serif;
-      font-size: 0.88rem;
+      font-size: 0.95rem;
       color: var(--gold);
       font-weight: bold;
-      margin-bottom: 0.9rem;
+      margin: 0;
     }
     .reading-text {
       font-size: 1rem;
@@ -234,32 +237,40 @@
 
     {% if readings.first_reading %}
     <div class="reading-block">
-      <p class="reading-name">First Reading</p>
-      <p class="reading-citation">{{ readings.first_reading.citation }}</p>
+      <div class="reading-heading">
+        <h3 class="reading-name">First Reading</h3>
+        <span class="reading-citation">{{ readings.first_reading.citation }}</span>
+      </div>
       <div class="reading-text">{{ readings.first_reading.text }}</div>
     </div>
     {% endif %}
 
     {% if readings.psalm %}
     <div class="reading-block">
-      <p class="reading-name">Responsorial Psalm</p>
-      <p class="reading-citation">{{ readings.psalm.citation }}</p>
+      <div class="reading-heading">
+        <h3 class="reading-name">Responsorial Psalm</h3>
+        <span class="reading-citation">{{ readings.psalm.citation }}</span>
+      </div>
       <div class="reading-text">{{ readings.psalm.text }}</div>
     </div>
     {% endif %}
 
     {% if readings.second_reading %}
     <div class="reading-block">
-      <p class="reading-name">Second Reading</p>
-      <p class="reading-citation">{{ readings.second_reading.citation }}</p>
+      <div class="reading-heading">
+        <h3 class="reading-name">Second Reading</h3>
+        <span class="reading-citation">{{ readings.second_reading.citation }}</span>
+      </div>
       <div class="reading-text">{{ readings.second_reading.text }}</div>
     </div>
     {% endif %}
 
     {% if readings.gospel %}
     <div class="reading-block">
-      <p class="reading-name">Gospel</p>
-      <p class="reading-citation">{{ readings.gospel.citation }}</p>
+      <div class="reading-heading">
+        <h3 class="reading-name">Gospel</h3>
+        <span class="reading-citation">{{ readings.gospel.citation }}</span>
+      </div>
       <div class="reading-text">{{ readings.gospel.text }}</div>
     </div>
     {% endif %}
