@@ -3,6 +3,7 @@
 Reads data.json and renders index.html via Jinja2 template.
 """
 
+import datetime
 import json
 import logging
 import os
@@ -46,8 +47,18 @@ def main():
         for cat in ("readings", "full_mass", "homily", "music")
     }
 
+    # Format date as "March 15th, 2026"
+    sunday_date_str = data.get("sunday_date", "")
+    try:
+        d = datetime.datetime.strptime(sunday_date_str, "%Y-%m-%d")
+        day = d.day
+        suffix = "th" if 11 <= day <= 13 else {1:"st", 2:"nd", 3:"rd"}.get(day % 10, "th")
+        sunday_date_display = d.strftime("%B ") + str(day) + suffix + d.strftime(", %Y")
+    except ValueError:
+        sunday_date_display = sunday_date_str
+
     html = template.render(
-        sunday_date=data.get("sunday_date", ""),
+        sunday_date=sunday_date_display,
         liturgical_name=data.get("liturgical_name", ""),
         readings=data.get("readings", {}),
         videos=displayed_videos,

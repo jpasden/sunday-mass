@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ liturgical_name }} — Sunday Mass</title>
+  <title>Catholic Sunday Mass</title>
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -38,10 +38,17 @@
       letter-spacing: 0.03em;
     }
     header .date {
-      margin-top: 0.4rem;
+      margin-top: 0.5rem;
       font-family: Arial, sans-serif;
-      font-size: 0.9rem;
-      color: rgba(255,255,255,0.8);
+      font-size: 1.15rem;
+      color: rgba(255,255,255,0.95);
+      letter-spacing: 0.03em;
+    }
+    header .lit-name {
+      margin-top: 0.35rem;
+      font-family: Arial, sans-serif;
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.65);
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
@@ -202,9 +209,12 @@
 <body>
 
 <header>
-  <h1>{{ liturgical_name }}</h1>
+  <h1>Catholic Sunday Mass</h1>
   {% if sunday_date %}
   <p class="date">{{ sunday_date }}</p>
+  {% endif %}
+  {% if liturgical_name %}
+  <p class="lit-name">{{ liturgical_name }}</p>
   {% endif %}
   <hr class="gold-rule">
 </header>
