@@ -70,7 +70,7 @@ def save_data(data):
 # Catholic.org scraping
 # ---------------------------------------------------------------------------
 
-CATHOLIC_ORG_URL = "https://www.catholic.org/bible/daily_reading/?date={date}"
+CATHOLIC_ORG_URL = "https://www.catholic.org/bible/daily_reading/?select_date={date}"
 
 # Maps h3 prefix patterns to our reading keys
 READING_PATTERNS = [
@@ -95,7 +95,7 @@ def scrape_readings(sunday_date):
     Returns a dict with keys: liturgical_name, readings (dict).
     Returns None if scraping fails.
     """
-    date_str = sunday_date.strftime("%Y%m%d")
+    date_str = sunday_date.strftime("%Y-%m-%d")
     url = CATHOLIC_ORG_URL.format(date=date_str)
     log.info("Fetching readings from: %s", url)
 
@@ -156,9 +156,11 @@ def scrape_readings(sunday_date):
             log.warning("Could not determine liturgical name.")
 
     # --- Readings ---
-    readings_div = soup.find("div", id="drReadings")
+    # Gospel and Reading 2 sometimes appear outside #drReadings in #bibleDailyReading.
+    # Search the outer container to catch all readings.
+    readings_div = soup.find("div", id="bibleDailyReading") or soup.find("div", id="drReadings")
     if not readings_div:
-        log.error("Could not find #drReadings on Catholic.org page.")
+        log.error("Could not find readings container on Catholic.org page.")
         return None
 
     readings = {}
@@ -190,8 +192,12 @@ def scrape_readings(sunday_date):
         readings[matched_key] = {"citation": citation, "text": text}
 
     if not readings:
-        log.error("No readings found in #drReadings.")
+        log.error("No readings found in readings container.")
         return None
+
+    # Enforce canonical order regardless of page order
+    READING_ORDER = ["first_reading", "psalm", "second_reading", "gospel"]
+    readings = {k: readings[k] for k in READING_ORDER if k in readings}
 
     log.info("Scraped readings: %s", list(readings.keys()))
     return {
