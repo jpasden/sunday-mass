@@ -295,7 +295,7 @@ def main():
 
     # --- Readings: only re-scrape if Sunday has changed ---
     if existing_sunday != sunday_str:
-        log.info("New Sunday detected (%s → %s). Scraping readings.", existing_sunday, sunday_str)
+        log.info("New Sunday detected (%s -> %s). Scraping readings.", existing_sunday, sunday_str)
         result = scrape_readings(sunday)
         if result is None:
             log.error("Scrape failed. Keeping existing data. Aborting run.")

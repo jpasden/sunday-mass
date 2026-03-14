@@ -55,7 +55,7 @@ def main():
 
     os.makedirs(config.PUBLIC_DIR, exist_ok=True)
     out_path = os.path.join(config.PUBLIC_DIR, "index.html")
-    with open(out_path, "w") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
 
     log.info("Rendered index.html to %s", out_path)
