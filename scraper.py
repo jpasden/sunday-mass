@@ -272,14 +272,15 @@ def sort_by_preferred(videos, category):
 def fetch_videos(liturgical_name, sunday_date):
     """Run one YouTube search per category and return dict keyed by category."""
     date_label = sunday_date.strftime("%B %-d, %Y")
+    short_name = liturgical_name.split(",")[0]  # e.g. "Fourth Sunday of Lent"
     queries = {
         "readings": "Catholic mass readings {date}".format(date=date_label),
-        "full_mass": '"{name}" Mass {year}'.format(
-            name=liturgical_name, year=sunday_date.year),
-        "homily":    '"{name}" homily OR sermon {year}'.format(
-            name=liturgical_name, year=sunday_date.year),
-        "music":     '"{name}" hymns OR songs OR canticle'.format(
-            name=liturgical_name),
+        "full_mass": "{name} Catholic Mass {year}".format(
+            name=short_name, year=sunday_date.year),
+        "homily":    "{name} homily OR sermon {year}".format(
+            name=short_name, year=sunday_date.year),
+        "music":     "{name} hymns OR songs OR canticle".format(
+            name=short_name),
     }
     results = {}
     for category, query in queries.items():
