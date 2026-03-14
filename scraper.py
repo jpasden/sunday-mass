@@ -309,12 +309,12 @@ def fetch_videos(liturgical_name, sunday_date):
 
     queries = {
         "readings": "Catholic mass readings {date}".format(date=date_label),
-        "full_mass": "{name} {year} Sunday Mass".format(
-            name=short_name, year=sunday_date.year),
-        "homily":    "{name} {year} homily OR sermon".format(
-            name=short_name, year=sunday_date.year),
-        "music":     "{name} {year} hymns OR choir OR canticle".format(
-            name=short_name, year=sunday_date.year),
+        "full_mass": "{name} {date} Sunday Mass".format(
+            name=short_name, date=date_label),
+        "homily":    "{name} {date} homily OR sermon".format(
+            name=short_name, date=date_label),
+        "music":     "{name} {date} hymns OR choir OR canticle".format(
+            name=short_name, date=date_label),
     }
 
     results = {}
