@@ -228,6 +228,20 @@ def _ordinal(n):
     return str(n) + "th"
 
 
+def target_sunday(today=None):
+    """
+    Return the Sunday this cron run should target.
+    - Monday: return yesterday (last Sunday)
+    - Any other day: return the upcoming Sunday (or today if Sunday)
+    """
+    if today is None:
+        today = datetime.date.today()
+    if today.weekday() == 0:  # Monday
+        return today - datetime.timedelta(days=1)
+    days_ahead = (6 - today.weekday()) % 7
+    return today + datetime.timedelta(days=days_ahead)
+
+
 def next_sunday(today=None):
     """Return the date of the upcoming Sunday (or today if today is Sunday)."""
     if today is None:

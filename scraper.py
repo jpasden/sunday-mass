@@ -19,7 +19,7 @@ from bs4 import BeautifulSoup
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
-from liturgical import get_liturgical_name, next_sunday
+from liturgical import get_liturgical_name, target_sunday
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -352,7 +352,7 @@ def merge_videos(existing, new_results):
 def main():
     log.info("=== Sunday Mass scraper starting ===")
 
-    sunday = next_sunday()
+    sunday = target_sunday()
     sunday_str = sunday.strftime("%Y-%m-%d")
     log.info("Upcoming Sunday: %s", sunday_str)
 
