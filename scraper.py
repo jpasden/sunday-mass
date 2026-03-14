@@ -17,6 +17,7 @@ import subprocess
 import requests
 from bs4 import BeautifulSoup
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
 from liturgical import get_liturgical_name, next_sunday
 
