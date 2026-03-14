@@ -275,12 +275,12 @@ def fetch_videos(liturgical_name, sunday_date):
     short_name = liturgical_name.split(",")[0]  # e.g. "Fourth Sunday of Lent"
     queries = {
         "readings": "Catholic mass readings {date}".format(date=date_label),
-        "full_mass": "{name} Catholic Mass {year}".format(
+        "full_mass": "{name} {year} full Sunday Mass celebration".format(
             name=short_name, year=sunday_date.year),
-        "homily":    "{name} homily OR sermon {year}".format(
+        "homily":    "{name} {year} homily OR sermon".format(
             name=short_name, year=sunday_date.year),
-        "music":     "{name} hymns OR songs OR canticle".format(
-            name=short_name),
+        "music":     "{name} {year} hymns OR choir OR canticle".format(
+            name=short_name, year=sunday_date.year),
     }
     results = {}
     for category, query in queries.items():
