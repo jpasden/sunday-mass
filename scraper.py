@@ -234,7 +234,7 @@ def _make_video(item):
     }
 
 
-def search_youtube(query, channel_id=None, max_results=5):
+def search_youtube(query, channel_id=None, max_results=5, published_after=None):
     """Search YouTube, optionally restricted to a channel. Returns list of video dicts."""
     params = {
         "key": config.YOUTUBE_API_KEY,
@@ -248,6 +248,8 @@ def search_youtube(query, channel_id=None, max_results=5):
     }
     if channel_id:
         params["channelId"] = channel_id
+    if published_after:
+        params["publishedAfter"] = published_after  # RFC 3339, e.g. "2026-03-10T00:00:00Z"
     try:
         resp = requests.get(YOUTUBE_SEARCH_URL, params=params, timeout=15)
         resp.raise_for_status()
@@ -263,7 +265,7 @@ def search_youtube(query, channel_id=None, max_results=5):
     return results
 
 
-def fetch_for_category(category, query, channel_ids):
+def fetch_for_category(category, query, channel_ids, published_after=None):
     """
     Search preferred channels first (in priority order), then fall back to
     a general search if we still have fewer than MAX_VIDEOS_PER_CATEGORY results.
@@ -276,7 +278,8 @@ def fetch_for_category(category, query, channel_ids):
     for channel_id in channel_ids:
         if len(results) >= target:
             break
-        videos = search_youtube(query, channel_id=channel_id, max_results=target)
+        videos = search_youtube(query, channel_id=channel_id, max_results=target,
+                                published_after=published_after)
         for v in videos:
             if v["id"] and v["id"] not in seen_ids:
                 seen_ids.add(v["id"])
@@ -285,7 +288,8 @@ def fetch_for_category(category, query, channel_ids):
     if len(results) < target:
         log.info("Only %d from preferred channels for '%s'; running general search.",
                  len(results), category)
-        general = search_youtube(query, max_results=config.VIDEOS_TO_FETCH_PER_SEARCH)
+        general = search_youtube(query, max_results=config.VIDEOS_TO_FETCH_PER_SEARCH,
+                                 published_after=published_after)
         for v in general:
             if v["id"] and v["id"] not in seen_ids:
                 seen_ids.add(v["id"])
@@ -298,6 +302,10 @@ def fetch_videos(liturgical_name, sunday_date):
     """Fetch videos for all categories using preferred channels first."""
     date_label = sunday_date.strftime("%B %-d, %Y")
     short_name = liturgical_name.split(",")[0]  # e.g. "Fourth Sunday of Lent"
+
+    # Only look at videos published in the 10 days leading up to and including Sunday
+    week_start = sunday_date - datetime.timedelta(days=10)
+    published_after = week_start.strftime("%Y-%m-%dT00:00:00Z")
 
     queries = {
         "readings": "Catholic mass readings {date}".format(date=date_label),
@@ -312,7 +320,8 @@ def fetch_videos(liturgical_name, sunday_date):
     results = {}
     for category, query in queries.items():
         channel_ids = config.PREFERRED_CHANNEL_IDS.get(category, [])
-        results[category] = fetch_for_category(category, query, channel_ids)
+        results[category] = fetch_for_category(category, query, channel_ids,
+                                               published_after=published_after)
 
     return results
 
