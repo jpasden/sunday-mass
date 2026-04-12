@@ -95,6 +95,14 @@ def main():
         f.write(html)
     log.info("Rendered index.html to %s", out_path)
 
+    # Archive a dated copy alongside index.html
+    sunday_date_str = data.get("sunday_date", "")
+    if sunday_date_str:
+        archive_name = f"{sunday_date_str}_mass_readings.html"
+        archive_path = os.path.join(config.PUBLIC_DIR, archive_name)
+        shutil.copy2(out_path, archive_path)
+        log.info("Archived to %s", archive_path)
+
     favicon_src = os.path.join(script_dir, "favicon.svg")
     favicon_dst = os.path.join(config.PUBLIC_DIR, "favicon.svg")
     if os.path.exists(favicon_src) and os.path.abspath(favicon_src) != os.path.abspath(favicon_dst):
