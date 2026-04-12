@@ -13,19 +13,20 @@
 
     :root {
       --crimson: #8B0000;
-      --gold: #C9A84C;
-      --text: #1a1a1a;
-      --muted: #666;
-      --border: #e0d6c8;
-      --bg: #ffffff;
-      --tab-bg: #f7f4f0;
+      --gold:    #C9A84C;
+      --text:    #1a1a1a;
+      --muted:   #666;
+      --border:  #d8cfc4;
+      --bg:      #ffffff;
+      --tab-bg:  #f7f4f0;
+      --kids-bg: #fdfbf7;
     }
 
     body {
       font-family: Georgia, 'Times New Roman', serif;
       background: var(--bg);
       color: var(--text);
-      line-height: 1.7;
+      line-height: 1.75;
     }
 
     /* ── Header ── */
@@ -44,14 +45,14 @@
     header .date {
       margin-top: 0.5rem;
       font-family: Arial, sans-serif;
-      font-size: 1.84rem;
+      font-size: 1.75rem;
       color: rgba(255,255,255,0.95);
       letter-spacing: 0.03em;
     }
     header .lit-name {
       margin-top: 0.35rem;
       font-family: Arial, sans-serif;
-      font-size: 1.31rem;
+      font-size: 1.1rem;
       color: rgba(255,255,255,0.65);
       letter-spacing: 0.06em;
       text-transform: uppercase;
@@ -63,67 +64,81 @@
       margin: 0.9rem auto 0;
     }
 
-    /* ── Top-level tab nav ── */
+    /* ── Tab nav ── */
     .top-nav {
       display: flex;
       border-bottom: 2px solid var(--crimson);
       background: var(--tab-bg);
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
     }
     .top-nav button {
       flex: 1;
-      min-width: 70px;
-      padding: 0.85rem 0.5rem;
+      padding: 0.9rem 1rem;
       border: none;
       background: none;
       font-family: Arial, sans-serif;
-      font-size: 0.78rem;
+      font-size: 0.85rem;
       font-weight: bold;
-      letter-spacing: 0.07em;
+      letter-spacing: 0.06em;
       text-transform: uppercase;
       color: var(--muted);
       cursor: pointer;
       border-bottom: 3px solid transparent;
       margin-bottom: -2px;
-      white-space: nowrap;
       transition: color 0.15s, border-color 0.15s;
     }
-    .top-nav button:hover { color: var(--crimson); }
+    .top-nav button:hover  { color: var(--crimson); }
     .top-nav button.active {
       color: var(--crimson);
       border-bottom-color: var(--crimson);
       background: var(--bg);
     }
 
-    /* ── Top-level tab panels ── */
-    .top-panel { display: none; }
-    .top-panel.active { display: block; }
+    .top-panel         { display: none; }
+    .top-panel.active  { display: block; }
 
-    /* ── Main content area ── */
+    /* ── Panel layout ── */
     .panel-inner {
-      max-width: 800px;
+      max-width: 1140px;
       margin: 0 auto;
-      padding: 1.8rem 1rem 3.5rem;
+      padding: 2rem 1.25rem 4rem;
     }
 
-    /* ── Section label ── */
+    /* ── Section labels ── */
     .section-label {
-      font-family: Georgia, serif;
-      font-size: 1.5rem;
-      font-weight: bold;
+      font-family: 'Cinzel', Georgia, serif;
+      font-size: 1.25rem;
+      font-weight: 400;
       color: var(--crimson);
-      margin-bottom: 1.4rem;
+      letter-spacing: 0.04em;
       padding-bottom: 0.4rem;
+      border-bottom: 2px solid var(--gold);
+      margin-bottom: 1.75rem;
+    }
+
+    /* ── Column header row ── */
+    .col-header-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      margin-bottom: 0.5rem;
+    }
+    .col-header {
+      font-family: Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: bold;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      padding-bottom: 0.35rem;
       border-bottom: 1px solid var(--border);
     }
-
-    /* ── Readings: stacked ── */
-    .reading-block {
-      margin-bottom: 2.8rem;
+    .col-header-kids {
+      padding-left: 1.75rem;
+      border-left: 1px solid var(--border);
     }
-    .reading-block:last-of-type {
-      margin-bottom: 0;
+
+    /* ── Reading block ── */
+    .reading-block {
+      margin-bottom: 2.5rem;
     }
     .reading-heading {
       display: flex;
@@ -134,72 +149,83 @@
     }
     .reading-name {
       font-family: Georgia, serif;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       font-weight: bold;
       color: var(--text);
-      margin: 0;
     }
     .reading-citation {
       font-family: Arial, sans-serif;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       color: var(--gold);
       font-weight: bold;
-      margin: 0;
-    }
-    .reading-text {
-      font-size: 1rem;
-      line-height: 1.9;
-      color: var(--text);
-      white-space: pre-wrap;
     }
 
-    /* ── Video grid ── */
-    .video-section { margin-top: 2.5rem; }
-
-    .video-grid {
+    /* ── Paragraph grid ── */
+    .para-grid {
       display: grid;
-      grid-template-columns: 1fr;
-      gap: 2rem;
+      grid-template-columns: 1fr 1fr;
+      row-gap: 1rem;
+      align-items: start;
     }
-    @media (min-width: 600px) {
-      .video-grid {
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      }
+    .para-adult {
+      padding-right: 1.75rem;
+      font-size: 0.975rem;
+      line-height: 1.85;
     }
-
-    .video-embed {
-      position: relative;
-      padding-bottom: 56.25%;
-      height: 0;
-      overflow: hidden;
-      border: 1px solid var(--border);
-      border-radius: 2px;
-    }
-    .video-embed iframe {
-      position: absolute;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      border: none;
-    }
-    .video-meta { margin-top: 0.6rem; }
-    .video-title {
-      font-family: Arial, sans-serif;
-      font-size: 0.85rem;
-      color: var(--text);
-      line-height: 1.4;
-    }
-    .video-channel {
-      font-family: Arial, sans-serif;
-      font-size: 0.75rem;
-      color: var(--muted);
-      margin-top: 0.2rem;
+    .para-kids {
+      padding-left: 1.75rem;
+      border-left: 1px solid var(--border);
+      font-size: 0.975rem;
+      line-height: 1.85;
+      color: #2a2a2a;
+      background: var(--kids-bg);
     }
 
-    .no-videos {
+    /* ── Notes section ── */
+    .notes-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 2px solid var(--border);
+    }
+    .note-block {
+      margin-bottom: 2rem;
+    }
+    .note-name {
       font-family: Arial, sans-serif;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
       color: var(--muted);
+      margin-bottom: 0.6rem;
+    }
+    .note-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      align-items: start;
+    }
+    .note-adult {
+      padding-right: 1.75rem;
+      font-size: 0.975rem;
+      line-height: 1.85;
+    }
+    .note-kids {
+      padding-left: 1.75rem;
+      border-left: 1px solid var(--border);
+      font-size: 0.975rem;
+      line-height: 1.85;
+      color: #2a2a2a;
+      background: var(--kids-bg);
+    }
+
+    /* ── AI disclaimer ── */
+    .ai-disclaimer {
+      margin-top: 2.5rem;
+      font-family: Arial, sans-serif;
+      font-size: 0.72rem;
+      color: #aaa;
       font-style: italic;
+      text-align: center;
     }
 
     /* ── Footer ── */
@@ -211,192 +237,242 @@
       padding: 1.5rem 1rem;
       border-top: 1px solid var(--border);
     }
+
+    /* ── Print styles ── */
+    @media print {
+      /* Print only the currently active tab */
+      .top-panel         { display: none !important; }
+      .top-panel.active  { display: block !important; }
+
+      /* Hide interactive chrome */
+      .top-nav { display: none !important; }
+
+      /* Keep column grids intact */
+      .para-grid,
+      .note-pair,
+      .col-header-row { display: grid !important; }
+
+      /* Avoid breaking a paragraph pair across pages */
+      .para-adult, .para-kids,
+      .note-adult,  .note-kids  { page-break-inside: avoid; }
+
+      /* Simplify header for print */
+      header {
+        background: none !important;
+        color: var(--text) !important;
+        border-bottom: 2px solid var(--crimson);
+        padding: 1rem 0 0.75rem;
+      }
+      header h1   { color: var(--crimson) !important; }
+      header .date,
+      header .lit-name { color: var(--text) !important; }
+
+      /* Ensure kids background prints */
+      .para-kids,
+      .note-kids { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      body { font-size: 10pt; }
+      .panel-inner { padding: 1rem 0; max-width: none; }
+    }
   </style>
 </head>
 <body>
 
 <header>
   <h1>Catholic Sunday Mass</h1>
-  {% if sunday_date %}
-  <p class="date">{{ sunday_date }}</p>
-  {% endif %}
-  {% if liturgical_name %}
-  <p class="lit-name">{{ liturgical_name }}</p>
-  {% endif %}
+  {% if sunday_date %}<p class="date">{{ sunday_date }}</p>{% endif %}
+  {% if liturgical_name %}<p class="lit-name">{{ liturgical_name }}</p>{% endif %}
   <hr class="gold-rule">
 </header>
 
 <nav class="top-nav">
-  <button class="active" onclick="showTop('readings', this)">Readings</button>
-  <button onclick="showTop('masses', this)">Masses</button>
-  <button onclick="showTop('sermons', this)">Sermons</button>
-  <button onclick="showTop('music', this)">Music</button>
+  <button class="active" onclick="showTab('en', this)">Readings (English)</button>
+  <button onclick="showTab('es', this)">Readings (Español)</button>
 </nav>
 
-<!-- ══ READINGS TAB ══ -->
-<div class="top-panel active" id="top-readings">
+{# ═══════════════════════════════════════════════════════ ENGLISH TAB ══ #}
+<div class="top-panel active" id="top-en">
   <div class="panel-inner">
 
-    <h2 class="section-label">Mass Readings</h2>
+    <h2 class="section-label">Readings</h2>
 
-    {% if readings.first_reading %}
+    <div class="col-header-row">
+      <div class="col-header">Adults</div>
+      <div class="col-header col-header-kids">Kids (age 12)</div>
+    </div>
+
+    {% set reading_labels = {
+      "first_reading":  "First Reading",
+      "second_reading": "Second Reading",
+      "gospel":         "Gospel"
+    } %}
+
+    {% for key, label in reading_labels.items() %}
+    {% if readings_en[key] is defined %}
     <div class="reading-block">
       <div class="reading-heading">
-        <h3 class="reading-name">First Reading</h3>
-        <span class="reading-citation">{{ readings.first_reading.citation }}</span>
+        <h3 class="reading-name">{{ label }}</h3>
+        <span class="reading-citation">{{ readings_en[key].citation }}</span>
       </div>
-      <div class="reading-text">{{ readings.first_reading.text }}</div>
-    </div>
-    {% endif %}
-
-    {% if readings.psalm %}
-    <div class="reading-block">
-      <div class="reading-heading">
-        <h3 class="reading-name">Responsorial Psalm</h3>
-        <span class="reading-citation">{{ readings.psalm.citation }}</span>
-      </div>
-      <div class="reading-text">{{ readings.psalm.text }}</div>
-    </div>
-    {% endif %}
-
-    {% if readings.second_reading %}
-    <div class="reading-block">
-      <div class="reading-heading">
-        <h3 class="reading-name">Second Reading</h3>
-        <span class="reading-citation">{{ readings.second_reading.citation }}</span>
-      </div>
-      <div class="reading-text">{{ readings.second_reading.text }}</div>
-    </div>
-    {% endif %}
-
-    {% if readings.gospel %}
-    <div class="reading-block">
-      <div class="reading-heading">
-        <h3 class="reading-name">Gospel</h3>
-        <span class="reading-citation">{{ readings.gospel.citation }}</span>
-      </div>
-      <div class="reading-text">{{ readings.gospel.text }}</div>
-    </div>
-    {% endif %}
-
-    {% if videos.readings %}
-    <div class="video-section">
-      <h2 class="section-label">Videos</h2>
-      <div class="video-grid">
-        {% for v in videos.readings %}
-        <div class="video-card">
-          <div class="video-embed">
-            <iframe src="https://www.youtube.com/embed/{{ v.id }}"
-              title="{{ v.title | e }}"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowfullscreen loading="lazy"></iframe>
-          </div>
-          <div class="video-meta">
-            <p class="video-title">{{ v.title }}</p>
-            <p class="video-channel">{{ v.channel }}</p>
-          </div>
-        </div>
+      <div class="para-grid">
+        {% for pair in readings_en[key].pairs %}
+        <p class="para-adult">{{ pair.adult }}</p>
+        <p class="para-kids">{{ pair.kids }}</p>
         {% endfor %}
       </div>
     </div>
     {% endif %}
+    {% endfor %}
+
+    {# ── Notes ── #}
+    {% if notes_en %}
+    <div class="notes-section">
+      <h2 class="section-label">Notes</h2>
+
+      <div class="col-header-row">
+        <div class="col-header">Adults</div>
+        <div class="col-header col-header-kids">Kids (age 12)</div>
+      </div>
+
+      {% if notes_en.historical_context %}
+      <div class="note-block">
+        <h3 class="note-name">Historical Context</h3>
+        <div class="note-pair">
+          <p class="note-adult">{{ notes_en.historical_context }}</p>
+          <p class="note-kids">{{ notes_en_kids.historical_context if notes_en_kids else '' }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if notes_en.connections %}
+      <div class="note-block">
+        <h3 class="note-name">Connections</h3>
+        <div class="note-pair">
+          <p class="note-adult">{{ notes_en.connections }}</p>
+          <p class="note-kids">{{ notes_en_kids.connections if notes_en_kids else '' }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if notes_en.meaning_today %}
+      <div class="note-block">
+        <h3 class="note-name">What does this mean for us today?</h3>
+        <div class="note-pair">
+          <p class="note-adult">{{ notes_en.meaning_today }}</p>
+          <p class="note-kids">{{ notes_en_kids.meaning_today if notes_en_kids else '' }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+    {% endif %}
+
+    <p class="ai-disclaimer">Kids&#x2019; adaptations, translations, and notes provided by Claude. Mistakes are possible. (Sorry!)</p>
 
   </div>
 </div>
 
-<!-- ══ MASSES TAB ══ -->
-<div class="top-panel" id="top-masses">
+{# ═══════════════════════════════════════════════════════ SPANISH TAB ══ #}
+<div class="top-panel" id="top-es">
   <div class="panel-inner">
-    <h2 class="section-label">Full Masses</h2>
-    {% if videos.full_mass %}
-    <div class="video-grid">
-      {% for v in videos.full_mass %}
-      <div class="video-card">
-        <div class="video-embed">
-          <iframe src="https://www.youtube.com/embed/{{ v.id }}"
-            title="{{ v.title | e }}"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen loading="lazy"></iframe>
-        </div>
-        <div class="video-meta">
-          <p class="video-title">{{ v.title }}</p>
-          <p class="video-channel">{{ v.channel }}</p>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="no-videos">No videos found yet.</p>
-    {% endif %}
-  </div>
-</div>
 
-<!-- ══ SERMONS TAB ══ -->
-<div class="top-panel" id="top-sermons">
-  <div class="panel-inner">
-    <h2 class="section-label">Homilies &amp; Sermons</h2>
-    {% if videos.homily %}
-    <div class="video-grid">
-      {% for v in videos.homily %}
-      <div class="video-card">
-        <div class="video-embed">
-          <iframe src="https://www.youtube.com/embed/{{ v.id }}"
-            title="{{ v.title | e }}"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen loading="lazy"></iframe>
-        </div>
-        <div class="video-meta">
-          <p class="video-title">{{ v.title }}</p>
-          <p class="video-channel">{{ v.channel }}</p>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p class="no-videos">No videos found yet.</p>
-    {% endif %}
-  </div>
-</div>
+    {% if readings_es %}
 
-<!-- ══ MUSIC TAB ══ -->
-<div class="top-panel" id="top-music">
-  <div class="panel-inner">
-    <h2 class="section-label">Music</h2>
-    {% if videos.music %}
-    <div class="video-grid">
-      {% for v in videos.music %}
-      <div class="video-card">
-        <div class="video-embed">
-          <iframe src="https://www.youtube.com/embed/{{ v.id }}"
-            title="{{ v.title | e }}"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen loading="lazy"></iframe>
-        </div>
-        <div class="video-meta">
-          <p class="video-title">{{ v.title }}</p>
-          <p class="video-channel">{{ v.channel }}</p>
+    <h2 class="section-label">Lecturas</h2>
+
+    <div class="col-header-row">
+      <div class="col-header">Adultos</div>
+      <div class="col-header col-header-kids">Niños (12 años)</div>
+    </div>
+
+    {% set reading_labels_es = {
+      "first_reading":  "Primera Lectura",
+      "second_reading": "Segunda Lectura",
+      "gospel":         "Evangelio"
+    } %}
+
+    {% for key, label in reading_labels_es.items() %}
+    {% if readings_es[key] is defined %}
+    <div class="reading-block">
+      <div class="reading-heading">
+        <h3 class="reading-name">{{ label }}</h3>
+        <span class="reading-citation">{{ readings_es[key].citation }}</span>
+      </div>
+      <div class="para-grid">
+        {% for pair in readings_es[key].pairs %}
+        <p class="para-adult">{{ pair.adult }}</p>
+        <p class="para-kids">{{ pair.kids }}</p>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+
+    {# ── Notas ── #}
+    {% if notes_es %}
+    <div class="notes-section">
+      <h2 class="section-label">Notas</h2>
+
+      <div class="col-header-row">
+        <div class="col-header">Adultos</div>
+        <div class="col-header col-header-kids">Niños (12 años)</div>
+      </div>
+
+      {% if notes_es.historical_context %}
+      <div class="note-block">
+        <h3 class="note-name">Contexto Histórico</h3>
+        <div class="note-pair">
+          <p class="note-adult">{{ notes_es.historical_context }}</p>
+          <p class="note-kids">{{ notes_es_kids.historical_context if notes_es_kids else '' }}</p>
         </div>
       </div>
-      {% endfor %}
+      {% endif %}
+
+      {% if notes_es.connections %}
+      <div class="note-block">
+        <h3 class="note-name">Conexiones</h3>
+        <div class="note-pair">
+          <p class="note-adult">{{ notes_es.connections }}</p>
+          <p class="note-kids">{{ notes_es_kids.connections if notes_es_kids else '' }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if notes_es.meaning_today %}
+      <div class="note-block">
+        <h3 class="note-name">¿Qué significa esto para nosotros hoy?</h3>
+        <div class="note-pair">
+          <p class="note-adult">{{ notes_es.meaning_today }}</p>
+          <p class="note-kids">{{ notes_es_kids.meaning_today if notes_es_kids else '' }}</p>
+        </div>
+      </div>
+      {% endif %}
+
     </div>
-    {% else %}
-    <p class="no-videos">No videos found yet.</p>
     {% endif %}
+
+    {% else %}
+    <p style="font-family:Arial,sans-serif; color:var(--muted); padding:2rem 0; font-style:italic;">
+      Las lecturas en español no están disponibles en este momento.
+    </p>
+    {% endif %}
+
+    <p class="ai-disclaimer">Las adaptaciones para niños, traducciones y notas son de Claude. Pueden contener errores. (¡Disculpen!)</p>
+
   </div>
 </div>
 
 <footer>
-  Updated {{ last_updated }} UTC &nbsp;|&nbsp; Readings from Catholic Online
+  Updated {{ last_updated }} UTC &nbsp;·&nbsp;
+  English readings: Catholic Online &nbsp;·&nbsp;
+  Spanish readings: USCCB &nbsp;·&nbsp;
+  Notes adapted with Claude AI
 </footer>
 
 <script>
-function showTop(id, btn) {
-  document.querySelectorAll('.top-panel').forEach(function(p) {
-    p.classList.remove('active');
-  });
-  document.querySelectorAll('.top-nav button').forEach(function(b) {
-    b.classList.remove('active');
-  });
+function showTab(id, btn) {
+  document.querySelectorAll('.top-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.top-nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('top-' + id).classList.add('active');
   btn.classList.add('active');
 }

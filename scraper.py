@@ -1,8 +1,19 @@
 #!/usr/bin/env python3
 """
 Sunday Mass site scraper.
-Fetches readings from Catholic.org and videos from YouTube Data API v3,
-updates data.json, then calls render.py to regenerate index.html.
+Fetches English readings from Catholic.org and Spanish readings from USCCB,
+adapts them for a 12-year-old reader using Claude Haiku, generates study notes,
+and re-renders index.html.
+
+Pipeline (all steps cached per Sunday — only re-run if sunday_date changes):
+  1. Scrape English readings (Catholic.org)
+  2. Scrape Spanish readings (USCCB ES)
+  3. Haiku: adapt English readings for kids
+  4. Haiku: adapt Spanish readings for kids
+  5. Haiku: write English adult notes (3 paragraphs)
+  6. Haiku: adapt English notes for kids
+  7. Haiku: translate English adult notes → Spanish
+  8. Haiku: translate English kids notes → Spanish kids
 """
 
 import json
@@ -16,6 +27,7 @@ import subprocess
 
 import requests
 from bs4 import BeautifulSoup
+import anthropic
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import config
@@ -29,24 +41,20 @@ os.makedirs(os.path.dirname(config.LOG_FILE), exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-    ],
+    handlers=[logging.StreamHandler(sys.stdout)],
 )
 log = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
 
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (compatible; SundayMassSiteBot/1.0; "
-        "+https://github.com/example/sunday-mass)"
+        "+https://github.com/jpasden/sunday-mass)"
     )
 }
 
+# ---------------------------------------------------------------------------
+# Data helpers
+# ---------------------------------------------------------------------------
 
 def load_data():
     if os.path.exists(config.DATA_FILE):
@@ -61,43 +69,38 @@ def load_data():
 def save_data(data):
     os.makedirs(os.path.dirname(config.DATA_FILE), exist_ok=True)
     data["last_updated"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S")
-    with open(config.DATA_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    with open(config.DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
     log.info("data.json saved.")
 
 
 # ---------------------------------------------------------------------------
-# Catholic.org scraping
+# English readings — Catholic.org
 # ---------------------------------------------------------------------------
 
 CATHOLIC_ORG_URL = "https://www.catholic.org/bible/daily_reading/?select_date={date}"
 
-# Maps h3 prefix patterns to our reading keys
-READING_PATTERNS = [
-    ("first_reading",   re.compile(r"^Reading\s+1", re.IGNORECASE)),
-    ("psalm",           re.compile(r"^Responsorial\s+Psalm", re.IGNORECASE)),
-    ("second_reading",  re.compile(r"^Reading\s+2", re.IGNORECASE)),
-    ("gospel",          re.compile(r"^Gospel", re.IGNORECASE)),
+EN_READING_PATTERNS = [
+    ("first_reading",  re.compile(r"^Reading\s+1", re.IGNORECASE)),
+    ("second_reading", re.compile(r"^Reading\s+2", re.IGNORECASE)),
+    ("gospel",         re.compile(r"^Gospel",       re.IGNORECASE)),
 ]
 
 
-def _text_from_paragraphs(tags):
-    """Extract clean text from a list of <p> tags, stripping inline links."""
-    parts = []
-    for p in tags:
-        parts.append(p.get_text(" ", strip=True))
-    return "\n".join(parts)
+def _paragraphs_from_tags(tags):
+    """Return list of non-empty paragraph strings from <p> tag objects."""
+    return [p.get_text(" ", strip=True) for p in tags if p.get_text(strip=True)]
 
 
-def scrape_readings(sunday_date):
+def scrape_readings_en(sunday_date):
     """
-    Scrape readings for the given date from Catholic.org.
-    Returns a dict with keys: liturgical_name, readings (dict).
-    Returns None if scraping fails.
+    Scrape first reading, second reading, and gospel from Catholic.org.
+    Returns {"liturgical_name": str, "readings": {key: {"citation", "paragraphs"}}}
+    or None on failure.
     """
     date_str = sunday_date.strftime("%Y-%m-%d")
     url = CATHOLIC_ORG_URL.format(date=date_str)
-    log.info("Fetching readings from: %s", url)
+    log.info("Fetching English readings: %s", url)
 
     try:
         resp = requests.get(url, headers=HEADERS, timeout=20)
@@ -107,242 +110,330 @@ def scrape_readings(sunday_date):
         return None
 
     time.sleep(config.REQUEST_DELAY_SECONDS)
-
     soup = BeautifulSoup(resp.text, "html.parser")
-
-    # --- Liturgical name ---
-    liturgical_name = None
-
-    # Liturgical name: always compute from our calendar (reliable).
-    # Catholic.org scraping for this is unreliable — the regex was
-    # matching scripture citations like "First Samuel...".
     liturgical_name = get_liturgical_name(sunday_date)
-    if liturgical_name:
-        log.info("Liturgical name: %s", liturgical_name)
-    else:
-        log.warning("Could not determine liturgical name.")
 
-    # --- Readings ---
-    # Gospel and Reading 2 sometimes appear outside #drReadings in #bibleDailyReading.
-    # Search the outer container to catch all readings.
-    readings_div = soup.find("div", id="bibleDailyReading") or soup.find("div", id="drReadings")
+    readings_div = (soup.find("div", id="bibleDailyReading")
+                    or soup.find("div", id="drReadings"))
     if not readings_div:
-        log.error("Could not find readings container on Catholic.org page.")
+        log.error("Could not find readings container on Catholic.org.")
         return None
 
     readings = {}
-    h3_tags = readings_div.find_all("h3")
-
-    for h3 in h3_tags:
+    for h3 in readings_div.find_all("h3"):
         h3_text = h3.get_text(" ", strip=True)
         matched_key = None
-        for key, pattern in READING_PATTERNS:
+        for key, pattern in EN_READING_PATTERNS:
             if pattern.match(h3_text):
                 matched_key = key
                 break
         if not matched_key:
             continue
 
-        # Extract citation from the <em> inside the h3
         em = h3.find("em")
         citation = em.get_text(strip=True) if em else h3_text
 
-        # Collect <p> tags that follow this h3, until the next h3 or end
         sibling = h3.find_next_sibling()
-        paras = []
+        ptags = []
         while sibling and sibling.name != "h3":
             if sibling.name == "p":
-                paras.append(sibling)
+                ptags.append(sibling)
             sibling = sibling.find_next_sibling()
 
-        text = _text_from_paragraphs(paras)
-        readings[matched_key] = {"citation": citation, "text": text}
+        paragraphs = _paragraphs_from_tags(ptags)
+        if paragraphs:
+            readings[matched_key] = {"citation": citation, "paragraphs": paragraphs}
 
     if not readings:
-        log.error("No readings found in readings container.")
+        log.error("No English readings found in container.")
         return None
 
-    # Enforce canonical order regardless of page order
-    READING_ORDER = ["first_reading", "psalm", "second_reading", "gospel"]
-    readings = {k: readings[k] for k in READING_ORDER if k in readings}
-
-    log.info("Scraped readings: %s", list(readings.keys()))
-    return {
-        "liturgical_name": liturgical_name,
-        "readings": readings,
-    }
+    ordered = {k: readings[k] for k in ["first_reading", "second_reading", "gospel"]
+               if k in readings}
+    log.info("Scraped English readings: %s", list(ordered.keys()))
+    return {"liturgical_name": liturgical_name, "readings": ordered}
 
 
 # ---------------------------------------------------------------------------
-# YouTube API
+# Spanish readings — USCCB
 # ---------------------------------------------------------------------------
 
-YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search"
+USCCB_ES_URL = "https://bible.usccb.org/es/bible/lecturas/{date}.cfm"
+
+ES_READING_PATTERNS = [
+    ("first_reading",  re.compile(r"primera\s+lectura",  re.IGNORECASE)),
+    ("second_reading", re.compile(r"segunda\s+lectura",  re.IGNORECASE)),
+    ("gospel",         re.compile(r"^evangelio",         re.IGNORECASE)),
+]
 
 
-def search_youtube(query, max_results=5):
+def scrape_readings_es(sunday_date):
     """
-    Search YouTube and return a list of video dicts:
-    {id, title, channel, found_at}
+    Scrape first reading, second reading, and gospel from USCCB Spanish.
+    Page structure: each reading is a div.innerblock containing
+      div.content-header (h3.name + div.address) and div.content-body (p tags).
+    Returns {key: {"citation", "paragraphs"}} or None on failure.
     """
-    params = {
-        "key": config.YOUTUBE_API_KEY,
-        "q": query,
-        "part": "snippet",
-        "type": "video",
-        "maxResults": max_results,
-        "relevanceLanguage": "en",
-        "safeSearch": "none",
-    }
+    date_str = sunday_date.strftime("%m%d%y")  # e.g. 041226
+    url = USCCB_ES_URL.format(date=date_str)
+    log.info("Fetching Spanish readings: %s", url)
+
     try:
-        resp = requests.get(YOUTUBE_SEARCH_URL, params=params, timeout=15)
+        resp = requests.get(url, headers=HEADERS, timeout=20)
         resp.raise_for_status()
     except requests.RequestException as e:
-        log.error("YouTube API request failed: %s", e)
-        return []
+        log.error("Failed to fetch USCCB ES: %s", e)
+        return None
 
-    data = resp.json()
-    results = []
-    for item in data.get("items", []):
-        video_id = item.get("id", {}).get("videoId")
-        if not video_id:
+    time.sleep(config.REQUEST_DELAY_SECONDS)
+    soup = BeautifulSoup(resp.text, "html.parser")
+
+    readings = {}
+    for block in soup.find_all("div", class_="innerblock"):
+        header = block.find("div", class_="content-header")
+        if not header:
             continue
-        snippet = item.get("snippet", {})
-        results.append({
-            "id": video_id,
-            "title": snippet.get("title", ""),
-            "channel": snippet.get("channelTitle", ""),
-            "found_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
-        })
-    log.info("YouTube search '%s' returned %d results.", query, len(results))
-    return results
+        h3 = header.find("h3", class_="name")
+        if not h3:
+            continue
+        h3_text = h3.get_text(" ", strip=True)
+
+        matched_key = None
+        for key, pattern in ES_READING_PATTERNS:
+            if pattern.search(h3_text):
+                matched_key = key
+                break
+        if not matched_key:
+            continue
+
+        addr = header.find("div", class_="address")
+        citation = addr.get_text(strip=True) if addr else ""
+
+        body = block.find("div", class_="content-body")
+        paragraphs = []
+        if body:
+            for p in body.find_all("p"):
+                text = p.get_text(" ", strip=True)
+                if text:
+                    paragraphs.append(text)
+
+        if paragraphs:
+            readings[matched_key] = {"citation": citation, "paragraphs": paragraphs}
+
+    if not readings:
+        log.error("No Spanish readings found. USCCB page structure may have changed.")
+        return None
+
+    ordered = {k: readings[k] for k in ["first_reading", "second_reading", "gospel"]
+               if k in readings}
+    log.info("Scraped Spanish readings: %s", list(ordered.keys()))
+    return ordered
 
 
-CATEGORIES = ("readings", "full_mass", "homily", "music")
+# ---------------------------------------------------------------------------
+# Anthropic / Haiku helpers
+# ---------------------------------------------------------------------------
+
+_client = None
 
 
-def _make_video(item):
-    snippet = item.get("snippet", {})
-    video_id = item.get("id", {})
-    if isinstance(video_id, dict):
-        video_id = video_id.get("videoId", "")
-    return {
-        "id": video_id,
-        "title": snippet.get("title", ""),
-        "channel": snippet.get("channelTitle", ""),
-        "found_at": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"),
-    }
+def _get_client():
+    global _client
+    if _client is None:
+        if not config.ANTHROPIC_API_KEY:
+            raise ValueError("ANTHROPIC_API_KEY is not set in the environment.")
+        _client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+    return _client
 
 
-def search_youtube(query, channel_id=None, max_results=5, published_after=None):
-    """Search YouTube, optionally restricted to a channel. Returns list of video dicts."""
-    params = {
-        "key": config.YOUTUBE_API_KEY,
-        "q": query,
-        "part": "snippet",
-        "type": "video",
-        "maxResults": max_results,
-        "relevanceLanguage": "en",
-        "safeSearch": "none",
-        "order": "date",
-    }
-    if channel_id:
-        params["channelId"] = channel_id
-    if published_after:
-        params["publishedAfter"] = published_after  # RFC 3339, e.g. "2026-03-10T00:00:00Z"
+def _call_haiku(prompt, max_tokens=4096):
+    """Call Claude Haiku; return response text or None on failure."""
     try:
-        resp = requests.get(YOUTUBE_SEARCH_URL, params=params, timeout=15)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        log.error("YouTube API request failed: %s", e)
-        return []
-    data = resp.json()
-    results = [_make_video(item) for item in data.get("items", [])
-               if item.get("id", {}).get("videoId")]
-    log.info("YouTube search '%s' (channel=%s) returned %d results.",
-             query, channel_id or "any", len(results))
-    time.sleep(1)
-    return results
+        msg = _get_client().messages.create(
+            model=config.ANTHROPIC_MODEL,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return msg.content[0].text
+    except Exception as e:
+        log.error("Haiku API call failed: %s", e)
+        return None
 
 
-def fetch_for_category(category, query, channel_ids, published_after=None):
-    """
-    Search preferred channels first (in priority order), then fall back to
-    a general search if we still have fewer than MAX_VIDEOS_PER_CATEGORY results.
-    Returns a deduplicated list.
-    """
-    target = config.MAX_VIDEOS_PER_CATEGORY
-    seen_ids = set()
-    results = []
-
-    for channel_id in channel_ids:
-        if len(results) >= target:
-            break
-        videos = search_youtube(query, channel_id=channel_id, max_results=target,
-                                published_after=published_after)
-        for v in videos:
-            if v["id"] and v["id"] not in seen_ids:
-                seen_ids.add(v["id"])
-                results.append(v)
-
-    if len(results) < target:
-        log.info("Only %d from preferred channels for '%s'; running general search.",
-                 len(results), category)
-        general = search_youtube(query, max_results=config.VIDEOS_TO_FETCH_PER_SEARCH,
-                                 published_after=published_after)
-        for v in general:
-            if v["id"] and v["id"] not in seen_ids:
-                seen_ids.add(v["id"])
-                results.append(v)
-
-    return results
+def _parse_json(text, label):
+    """Strip markdown fences and parse JSON; return None on failure."""
+    if text is None:
+        return None
+    text = re.sub(r"^```(?:json)?\s*", "", text.strip())
+    text = re.sub(r"\s*```$", "", text.strip())
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        log.error("JSON parse failed for %s: %s\nResponse was: %.500s", label, e, text)
+        return None
 
 
-def fetch_videos(liturgical_name, sunday_date):
-    """Fetch videos for all categories using preferred channels first."""
-    date_label = sunday_date.strftime("%B %-d, %Y")
-    short_name = liturgical_name.split(",")[0]  # e.g. "Fourth Sunday of Lent"
+# ---------------------------------------------------------------------------
+# Kids reading adaptation
+# ---------------------------------------------------------------------------
 
-    # Only look at videos published in the 10 days leading up to and including Sunday
-    week_start = sunday_date - datetime.timedelta(days=10)
-    published_after = week_start.strftime("%Y-%m-%dT00:00:00Z")
-
-    queries = {
-        "readings": "Catholic mass readings {date}".format(date=date_label),
-        "full_mass": "{name} {date} Sunday Mass".format(
-            name=short_name, date=date_label),
-        "homily":    "{name} {date} homily OR sermon".format(
-            name=short_name, date=date_label),
-        "music":     "{name} {date} hymns OR choir OR canticle".format(
-            name=short_name, date=date_label),
+def _readings_to_prompt_text(readings):
+    labels = {
+        "first_reading":  "FIRST READING",
+        "second_reading": "SECOND READING",
+        "gospel":         "GOSPEL",
     }
+    parts = []
+    for key in ["first_reading", "second_reading", "gospel"]:
+        if key not in readings:
+            continue
+        r = readings[key]
+        parts.append(f"{labels[key]} ({r['citation']}):")
+        for i, para in enumerate(r["paragraphs"], 1):
+            parts.append(f"  Paragraph {i}: {para}")
+        parts.append("")
+    return "\n".join(parts)
 
-    results = {}
-    for category, query in queries.items():
-        channel_ids = config.PREFERRED_CHANNEL_IDS.get(category, [])
-        results[category] = fetch_for_category(category, query, channel_ids,
-                                               published_after=published_after)
 
-    return results
-
-
-def merge_videos(existing, new_results):
+def adapt_readings_for_kids(readings, language="English"):
     """
-    Merge new video results into existing accumulated lists.
-    Deduplicates by video ID, then re-sorts by preferred channels.
-    Returns updated dict.
+    Rewrite readings for a 12-year-old. Returns a readings dict with the same
+    structure but kids-friendly paragraphs; paragraph count matches the adult version.
     """
-    merged = {}
-    for category in CATEGORIES:
-        existing_list = existing.get(category, [])
-        existing_ids = set(v["id"] for v in existing_list)
-        combined = list(existing_list)
-        for video in new_results.get(category, []):
-            if video["id"] not in existing_ids:
-                combined.append(video)
-                existing_ids.add(video["id"])
-        merged[category] = combined
-    return merged
+    log.info("Adapting %s readings for kids...", language)
+    readings_text = _readings_to_prompt_text(readings)
+
+    prompt = f"""You are adapting Catholic Mass readings for a 12-year-old.
+
+Here are the three readings in {language}:
+
+{readings_text}
+Rewrite each paragraph in clear, simple {language} that a 12-year-old can easily understand. When a biblical or historical term appears that a young reader might not know (e.g., "Pharisees", "leper", "synagogue", "apostle", "covenant"), add a brief parenthetical explanation right after it — for example: Pharisees (a group of strict Jewish religious leaders who followed many detailed rules).
+
+Keep the meaning faithful to the original. Do not add or remove events.
+
+Return ONLY valid JSON — no extra text, no markdown fences:
+{{
+  "first_reading": ["paragraph 1 text", "paragraph 2 text", ...],
+  "second_reading": ["paragraph 1 text", ...],
+  "gospel": ["paragraph 1 text", ...]
+}}
+
+Each array must have exactly the same number of elements as the corresponding adult reading listed above. Omit any key not present in the input."""
+
+    result = _parse_json(_call_haiku(prompt), f"kids readings ({language})")
+    if result is None:
+        return None
+
+    kids = {}
+    for key in ["first_reading", "second_reading", "gospel"]:
+        if key not in readings:
+            continue
+        kids_paras = result.get(key)
+        if not isinstance(kids_paras, list) or not kids_paras:
+            log.warning("Kids reading missing or empty for key: %s — falling back to adult.", key)
+            kids_paras = readings[key]["paragraphs"]
+        kids[key] = {"citation": readings[key]["citation"], "paragraphs": kids_paras}
+
+    return kids
+
+
+# ---------------------------------------------------------------------------
+# Notes generation
+# ---------------------------------------------------------------------------
+
+def write_notes_en(liturgical_name, readings):
+    """Generate three-paragraph English study notes from the readings."""
+    log.info("Writing English adult notes...")
+    readings_text = _readings_to_prompt_text(readings)
+
+    prompt = f"""You are a Catholic biblical scholar writing for adult readers.
+
+Today is {liturgical_name}. Here are the three Mass readings:
+
+{readings_text}
+Write exactly three paragraphs as a JSON object. Return ONLY valid JSON — no extra text.
+
+Be theologically precise and faithful to what each passage actually says. Do not reverse or soften key theological moments. For example: if Thomas believes because he sees and touches the risen Christ, say so clearly — and note that Jesus then blesses those who believe WITHOUT having seen, which is the situation of all Christians who come after. Do not conflate Thomas's privileged experience with the experience of later believers.
+
+{{
+  "historical_context": "One paragraph of relevant historical, archaeological, or anthropological background that helps an adult reader understand these readings more deeply.",
+  "connections": "One paragraph explaining why these three readings were placed together in the Sunday lectionary. What is the unifying theological theme or thread connecting them?",
+  "meaning_today": "One paragraph explaining why these readings remain meaningful and relevant for Catholic Christians living today."
+}}"""
+
+    return _parse_json(_call_haiku(prompt), "English notes")
+
+
+def vet_notes(liturgical_name, readings, notes):
+    """
+    Have Claude review the English adult notes for theological accuracy.
+    Returns {"notes": {corrected notes}, "corrections": [list of changes made]}
+    or None on API failure.
+    """
+    log.info("Vetting notes for theological accuracy...")
+    readings_text = _readings_to_prompt_text(readings)
+    notes_json = json.dumps(notes, ensure_ascii=False, indent=2)
+
+    prompt = f"""You are a careful Catholic theologian reviewing study notes for theological accuracy.
+
+Today is {liturgical_name}. Here are the actual Mass readings:
+
+{readings_text}
+Here are the study notes to review:
+{notes_json}
+
+Check each paragraph carefully for:
+- Reversed or inverted meanings (e.g., saying someone believed without seeing when the text says they believed BECAUSE they saw, or vice versa)
+- Misattributed statements or quotes assigned to the wrong person or passage
+- Claims that contradict what the readings actually say
+- Theological errors that conflict with standard Catholic teaching
+
+If a paragraph is accurate, keep it exactly as written. If you find an error, correct it.
+
+Return ONLY valid JSON — no extra text:
+{{
+  "corrections": ["brief description of each correction made — empty list if none"],
+  "notes": {{
+    "historical_context": "...",
+    "connections": "...",
+    "meaning_today": "..."
+  }}
+}}"""
+
+    result = _parse_json(_call_haiku(prompt), "notes vetting")
+    if result is None:
+        return None
+    if result.get("corrections"):
+        log.warning("Vet made %d correction(s): %s",
+                    len(result["corrections"]), result["corrections"])
+    else:
+        log.info("Vet passed with no corrections.")
+    return result
+
+
+def adapt_notes_for_kids(notes):
+    """Adapt the three-paragraph notes for a 12-year-old."""
+    log.info("Adapting notes for kids...")
+    notes_json = json.dumps(notes, ensure_ascii=False, indent=2)
+
+    prompt = f"""Rewrite these three paragraphs for a 12-year-old Catholic reader. Keep the same three JSON keys and the same overall meaning. Use simple, clear language. Add brief parenthetical explanations for any complex terms.
+
+Return ONLY valid JSON with exactly the same structure:
+{notes_json}"""
+
+    return _parse_json(_call_haiku(prompt), "kids notes")
+
+
+def translate_notes(notes, target_language):
+    """Translate a notes dict to target_language."""
+    log.info("Translating notes to %s...", target_language)
+    notes_json = json.dumps(notes, ensure_ascii=False, indent=2)
+
+    prompt = f"""Translate these three paragraphs to {target_language}. Keep the same three JSON keys. Return ONLY valid JSON with exactly the same structure:
+{notes_json}"""
+
+    return _parse_json(_call_haiku(prompt), f"notes ({target_language})")
 
 
 # ---------------------------------------------------------------------------
@@ -354,38 +445,99 @@ def main():
 
     sunday = target_sunday()
     sunday_str = sunday.strftime("%Y-%m-%d")
-    log.info("Upcoming Sunday: %s", sunday_str)
+    log.info("Target Sunday: %s", sunday_str)
 
     data = load_data()
     existing_sunday = data.get("sunday_date")
+    new_sunday = existing_sunday != sunday_str
 
-    # --- Readings: only re-scrape if Sunday has changed ---
-    if existing_sunday != sunday_str:
-        log.info("New Sunday detected (%s -> %s). Scraping readings.", existing_sunday, sunday_str)
-        result = scrape_readings(sunday)
+    if new_sunday:
+        log.info("New Sunday (%s → %s). Clearing cached data.", existing_sunday, sunday_str)
+        data = {"sunday_date": sunday_str}
+
+    # ── 1. English readings ──────────────────────────────────────────────
+    if "readings_en" not in data:
+        result = scrape_readings_en(sunday)
         if result is None:
-            log.error("Scrape failed. Keeping existing data. Aborting run.")
+            log.error("English readings scrape failed. Aborting.")
             sys.exit(1)
-        data["sunday_date"] = sunday_str
         data["liturgical_name"] = result["liturgical_name"]
-        data["readings"] = result["readings"]
-        # Reset videos for the new Sunday
-        data["videos"] = {cat: [] for cat in CATEGORIES}
+        data["readings_en"] = result["readings"]
+        save_data(data)
     else:
-        log.info("Sunday unchanged (%s). Skipping reading scrape.", sunday_str)
+        log.info("English readings already cached.")
+
+    # ── 2. Spanish readings ──────────────────────────────────────────────
+    if "readings_es" not in data:
+        es = scrape_readings_es(sunday)
+        if es is None:
+            log.warning("Spanish readings scrape failed. Spanish content will be unavailable.")
+        else:
+            data["readings_es"] = es
+            save_data(data)
+    else:
+        log.info("Spanish readings already cached.")
 
     liturgical_name = data.get("liturgical_name", "")
 
-    # --- YouTube: always fetch and merge ---
-    if liturgical_name:
-        new_videos = fetch_videos(liturgical_name, sunday)
-        data["videos"] = merge_videos(data.get("videos", {}), new_videos)
+    # ── 3. Kids English readings ─────────────────────────────────────────
+    if "readings_en_kids" not in data and "readings_en" in data:
+        kids_en = adapt_readings_for_kids(data["readings_en"], language="English")
+        if kids_en:
+            data["readings_en_kids"] = kids_en
+            save_data(data)
+
+    # ── 4. Kids Spanish readings ─────────────────────────────────────────
+    if "readings_es_kids" not in data and "readings_es" in data:
+        kids_es = adapt_readings_for_kids(data["readings_es"], language="Spanish")
+        if kids_es:
+            data["readings_es_kids"] = kids_es
+            save_data(data)
+
+    # ── 5. English adult notes ───────────────────────────────────────────
+    if "notes_en" not in data and "readings_en" in data and liturgical_name:
+        notes_en = write_notes_en(liturgical_name, data["readings_en"])
+        if notes_en:
+            data["notes_en"] = notes_en
+            save_data(data)
+
+    # ── 5b. Vet English notes for theological accuracy ───────────────────
+    if "notes_en" in data and not data.get("notes_vetted"):
+        vetted = vet_notes(liturgical_name, data["readings_en"], data["notes_en"])
+        if vetted:
+            data["notes_en"] = vetted["notes"]
+            data["notes_vet_log"] = vetted.get("corrections", [])
+            data["notes_vetted"] = True
+            save_data(data)
+        else:
+            log.warning("Vetting API call failed — skipping downstream note steps for safety.")
+
+    # Steps 6–8 only proceed once notes have been vetted
+    if not data.get("notes_vetted"):
+        log.warning("Notes not yet vetted; skipping kids/Spanish note generation.")
     else:
-        log.warning("No liturgical name available; skipping YouTube search.")
+        # ── 6. English kids notes ─────────────────────────────────────────
+        if "notes_en_kids" not in data:
+            notes_en_kids = adapt_notes_for_kids(data["notes_en"])
+            if notes_en_kids:
+                data["notes_en_kids"] = notes_en_kids
+                save_data(data)
 
-    save_data(data)
+        # ── 7. Spanish adult notes ────────────────────────────────────────
+        if "notes_es" not in data:
+            notes_es = translate_notes(data["notes_en"], "Spanish")
+            if notes_es:
+                data["notes_es"] = notes_es
+                save_data(data)
 
-    # --- Re-render HTML ---
+        # ── 8. Spanish kids notes ─────────────────────────────────────────
+        if "notes_es_kids" not in data and "notes_en_kids" in data:
+            notes_es_kids = translate_notes(data["notes_en_kids"], "Spanish")
+            if notes_es_kids:
+                data["notes_es_kids"] = notes_es_kids
+                save_data(data)
+
+    # ── Render ───────────────────────────────────────────────────────────
     script_dir = os.path.dirname(os.path.abspath(__file__))
     render_script = os.path.join(script_dir, "render.py")
     log.info("Rendering HTML...")
